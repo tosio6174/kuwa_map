@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f0e8">
+  <meta name="color-scheme" content="light">
+  <title>十勝 植生地図</title>
+  <link rel="preconnect" href="https://cyberjapandata.gsi.go.jp" crossorigin>
+  <link rel="preconnect" href="https://svr-moej.gisservice.jp" crossorigin>
+  <link rel="dns-prefetch" href="//cyberjapandata.gsi.go.jp">
+  <link rel="dns-prefetch" href="//svr-moej.gisservice.jp">
+  <link rel="stylesheet" href="./assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="./assets/styles.css">
+  <script defer src="./assets/vendor/leaflet/leaflet.js"></script>
+  <script defer src="./assets/app.js"></script>
+</head>
+<body>
+  <main id="app">
+    <div id="map" aria-label="十勝地方の植生地図"></div>
+
+    <div
+      id="status-orb"
+      class="status-orb"
+      data-state="loading"
+      role="img"
+      aria-label="地図を準備中"
+      tabindex="0"
+    >
+      <svg class="status-icon status-icon--loading" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8"></circle>
+      </svg>
+      <svg class="status-icon status-icon--success" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.8 12.4 10.4 16 17.5 8.8"></path>
+      </svg>
+      <svg class="status-icon status-icon--warning" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 7.2v5.4"></path>
+        <circle cx="12" cy="16.5" r=".8"></circle>
+      </svg>
+      <svg class="status-icon status-icon--error" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m8.3 8.3 7.4 7.4m0-7.4-7.4 7.4"></path>
+      </svg>
+      <svg class="status-icon status-icon--idle" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4.8 12s2.7-4.2 7.2-4.2 7.2 4.2 7.2 4.2-2.7 4.2-7.2 4.2S4.8 12 4.8 12Z"></path>
+        <path d="m6.2 5.8 11.6 12.4"></path>
+      </svg>
+    </div>
+    <p id="status-live" class="sr-only" aria-live="polite" aria-atomic="true">地図を準備しています。</p>
+
+    <section id="control-panel" class="map-panel control-panel" aria-label="地図表示設定">
+      <button
+        id="settings-toggle"
+        class="settings-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="settings-content"
+      >
+        <span class="settings-heading">
+          <span class="panel-kicker">MAP SETTINGS</span>
+          <strong>表示設定</strong>
+        </span>
+        <svg class="settings-chevron" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m7 14 5-5 5 5"></path>
+        </svg>
+      </button>
+
+      <div id="settings-content" class="settings-content">
+        <fieldset class="control-group base-map-group">
+          <legend>背景地図</legend>
+          <div class="segmented-control">
+            <label class="segment-option">
+              <input type="radio" name="base-map" value="standard" checked>
+              <span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m4 6.5 5-2.2 6 2.2 5-2.2v13.2l-5 2.2-6-2.2-5 2.2V6.5Z"></path>
+                  <path d="M9 4.3v13.2m6-11v13.2"></path>
+                </svg>
+                標準
+              </span>
+            </label>
+            <label class="segment-option">
+              <input type="radio" name="base-map" value="photo">
+              <span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="5" width="16" height="14" rx="2"></rect>
+                  <circle cx="9" cy="10" r="1.5"></circle>
+                  <path d="m6.5 17 4-4 2.7 2.7 2-2 2.3 3.3"></path>
+                </svg>
+                航空写真
+              </span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="control-group overlay-control">
+          <div>
+            <span class="control-label">植生オーバーレイ</span>
+            <span class="control-caption">環境省 現存植生図2024</span>
+          </div>
+          <label class="switch" for="vegetation-toggle">
+            <input id="vegetation-toggle" type="checkbox" checked>
+            <span class="switch-track" aria-hidden="true"><span></span></span>
+            <span class="sr-only">植生オーバーレイの表示を切り替える</span>
+          </label>
+        </div>
+
+        <div class="control-group opacity-control">
+          <label for="opacity-slider">
+            <span>透明度</span>
+            <output id="opacity-value" for="opacity-slider">45%</output>
+          </label>
+          <input
+            id="opacity-slider"
+            type="range"
+            min="15"
+            max="80"
+            step="5"
+            value="45"
+          >
+        </div>
+      </div>
+    </section>
+
+    <button
+      id="location-button"
+      class="map-action location-button"
+      type="button"
+      data-state="idle"
+      data-tooltip="現在地を表示"
+      aria-label="現在地を表示"
+    >
+      <svg class="location-icon location-icon--target" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 3v3m0 12v3M3 12h3m12 0h3"></path>
+      </svg>
+      <svg class="location-icon location-icon--loading" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8"></circle>
+      </svg>
+    </button>
+
+    <section id="legend-panel" class="map-panel legend-panel" aria-label="植生凡例とフィルター">
+      <button
+        id="legend-toggle"
+        class="legend-toggle"
+        type="button"
+        aria-expanded="true"
+        aria-controls="legend-content"
+      >
+        <span class="legend-heading">
+          <span class="panel-kicker">VEGETATION</span>
+          <strong>植物凡例</strong>
+        </span>
+        <span id="legend-count" class="legend-count">0 / 0</span>
+        <svg class="legend-chevron" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m7 14 5-5 5 5"></path>
+        </svg>
+      </button>
+
+      <div id="legend-content" class="legend-content">
+        <div class="legend-tools">
+          <label class="search-field" for="legend-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="5.5"></circle>
+              <path d="m15 15 4 4"></path>
+            </svg>
+            <input id="legend-search" type="search" placeholder="植生名を検索" autocomplete="off">
+          </label>
+
+          <div class="preset-group" role="group" aria-label="凡例プリセット">
+            <button id="preset-all" class="preset-chip" type="button" data-preset="all" aria-pressed="true">
+              すべて
+            </button>
+            <button id="preset-stag" class="preset-chip preset-chip--stag" type="button" data-preset="stag" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8.5 9.5 6 6m9.5 3.5L18 6M9 6.5 8 3m7 3.5 1-3"></path>
+                <path d="M8.2 10.2c.7-2 2-3 3.8-3s3.1 1 3.8 3v6.3c0 2-1.7 3.5-3.8 3.5s-3.8-1.5-3.8-3.5v-6.3Z"></path>
+                <path d="M8.2 12H5.5m10.3 0h2.7M8.2 15.5H5.5m10.3 0h2.7"></path>
+              </svg>
+              クワガタ候補
+            </button>
+          </div>
+
+          <div class="legend-actions">
+            <span id="legend-visible-summary">0種類を表示中</span>
+            <div>
+              <button id="legend-show-all" type="button">全表示</button>
+              <button id="legend-hide-all" type="button">全非表示</button>
+            </div>
+          </div>
+        </div>
+
+        <p id="preset-note" class="preset-note" hidden>
+          ナラ類・ハルニレ・ヤナギ類など、クワガタの樹液利用や落葉広葉樹環境と関係しやすい凡例を参考表示しています。生息を保証するものではありません。
+        </p>
+
+        <p id="legend-empty" class="legend-empty">この範囲に表示できる植生はありません。</p>
+        <ul id="legend-list" class="legend-list"></ul>
+
+        <footer class="legend-footer">
+          説明は植生名と属性をもとにした簡易要約です。現地の樹種構成や立入可否は別途確認してください。
+        </footer>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
